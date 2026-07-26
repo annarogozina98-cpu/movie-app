@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #12141a;
+  color: #eef0f3;
+}
+
+/* Film-strip perforation motif: used as a signature divider under the nav
+   and along the top edge of cards. A row of small "sprocket holes" is the
+   one recurring visual idea tying every screen back to "film". */
+.perf-strip {
+  height: 10px;
+  background-image: radial-gradient(circle, #12141a 2.5px, transparent 2.6px);
+  background-size: 16px 10px;
+  background-position: 4px center;
+  background-color: #e8b94f;
+  border-radius: 3px;
+}
+
+.perf-strip-thin {
+  height: 6px;
+  background-image: radial-gradient(circle, #12141a 1.6px, transparent 1.7px);
+  background-size: 11px 6px;
+  background-position: 3px center;
+  background-color: #2e3444;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #12141a;
+}
+::-webkit-scrollbar-thumb {
+  background: #2e3444;
+  border-radius: 6px;
+}
+
+:focus-visible {
+  outline: 2px solid #e8b94f;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
