@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ToWatchMovie } from "@/types";
 import AddMovieForm from "@/components/AddMovieForm";
 import ToWatchCard from "@/components/ToWatchCard";
+import FilterBar from "@/components/FilterBar";
+import { extractGenreOptions, matchesSearchAndGenre, sortMovies, toNumber } from "@/lib/filterMovies";
+
+const SORT_OPTIONS = [
+  { value: "created:desc", label: "Сначала новые" },
+  { value: "rating:desc", label: "Рейтинг: высокий → низкий" },
+  { value: "year:desc", label: "Год: новые → старые" },
+  { value: "title:asc", label: "Название А-Я" },
+];
 
 export default function ToWatchPage() {
   const [movies, setMovies] = useState<ToWatchMovie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [genre, setGenre] = useState("");
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS[0].value);
 
   async function load() {
     const res = await fetch("/api/to-watch");
@@ -62,9 +74,35 @@ export default function ToWatchPage() {
     }
   }
 
+  const genreOptions = useMemo(() => extractGenreOptions(movies), [movies]);
+
+  const visibleMovies = useMemo(() => {
+    const filtered = movies.filter((m) => matchesSearchAndGenre(m, search, genre));
+    return sortMovies(filtered, sortBy, {
+      created: (m) => m.created_at,
+      rating: (m) => toNumber(m.imdb_rating),
+      year: (m) => toNumber(m.year),
+      title: (m) => m.title,
+    });
+  }, [movies, search, genre, sortBy]);
+
   return (
     <div className="flex flex-col gap-5">
       <AddMovieForm onAdd={handleAdd} />
+
+      {movies.length > 0 && (
+        <FilterBar
+          search={search}
+          onSearchChange={setSearch}
+          genre={genre}
+          onGenreChange={setGenre}
+          genreOptions={genreOptions}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOptions={SORT_OPTIONS}
+          resultCount={visibleMovies.length}
+        />
+      )}
 
       {loading && <p className="text-sm text-muted">Загружаю…</p>}
 
@@ -74,8 +112,12 @@ export default function ToWatchPage() {
         </p>
       )}
 
+      {!loading && movies.length > 0 && visibleMovies.length === 0 && (
+        <p className="text-sm text-muted">Ничего не найдено по этим фильтрам.</p>
+      )}
+
       <div className="flex flex-col gap-3">
-        {movies.map((m) => (
+        {visibleMovies.map((m) => (
           <ToWatchCard
             key={m.id}
             movie={m}
