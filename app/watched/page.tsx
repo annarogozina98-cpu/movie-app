@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { WatchedMovie } from "@/types";
 import WatchedCard from "@/components/WatchedCard";
 import AddMovieForm from "@/components/AddMovieForm";
+import FilterBar from "@/components/FilterBar";
+import { extractGenreOptions, matchesSearchAndGenre, sortMovies, toNumber } from "@/lib/filterMovies";
+
+const SORT_OPTIONS = [
+  { value: "watched_date:desc", label: "Дата просмотра: недавние" },
+  { value: "our_rating:desc", label: "Наша оценка: высокая → низкая" },
+  { value: "rating:desc", label: "Рейтинг IMDb: высокий → низкий" },
+  { value: "title:asc", label: "Название А-Я" },
+];
 
 export default function WatchedPage() {
   const [movies, setMovies] = useState<WatchedMovie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [genre, setGenre] = useState("");
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS[0].value);
 
   async function load() {
     const res = await fetch("/api/watched");
@@ -60,6 +72,18 @@ export default function WatchedPage() {
     }
   }
 
+  const genreOptions = useMemo(() => extractGenreOptions(movies), [movies]);
+
+  const visibleMovies = useMemo(() => {
+    const filtered = movies.filter((m) => matchesSearchAndGenre(m, search, genre));
+    return sortMovies(filtered, sortBy, {
+      watched_date: (m) => m.watched_date,
+      our_rating: (m) => toNumber(m.our_rating),
+      rating: (m) => toNumber(m.imdb_rating),
+      title: (m) => m.title,
+    });
+  }, [movies, search, genre, sortBy]);
+
   return (
     <div className="flex flex-col gap-5">
       <details className="rounded-card bg-surface p-4 text-sm text-muted">
@@ -71,14 +95,32 @@ export default function WatchedPage() {
         </div>
       </details>
 
+      {movies.length > 0 && (
+        <FilterBar
+          search={search}
+          onSearchChange={setSearch}
+          genre={genre}
+          onGenreChange={setGenre}
+          genreOptions={genreOptions}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOptions={SORT_OPTIONS}
+          resultCount={visibleMovies.length}
+        />
+      )}
+
       {loading && <p className="text-sm text-muted">Загружаю…</p>}
 
       {!loading && movies.length === 0 && (
         <p className="text-sm text-muted">Список пуст.</p>
       )}
 
+      {!loading && movies.length > 0 && visibleMovies.length === 0 && (
+        <p className="text-sm text-muted">Ничего не найдено по этим фильтрам.</p>
+      )}
+
       <div className="flex flex-col gap-3">
-        {movies.map((m) => (
+        {visibleMovies.map((m) => (
           <WatchedCard
             key={m.id}
             movie={m}
