@@ -1,14 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Recommendation } from "@/types";
 import RecommendationCard from "@/components/RecommendationCard";
+import FilterBar from "@/components/FilterBar";
+import { extractGenreOptions, matchesSearchAndGenre, sortMovies, toNumber } from "@/lib/filterMovies";
+
+const SORT_OPTIONS = [
+  { value: "created:desc", label: "Сначала новые" },
+  { value: "rating:desc", label: "Рейтинг: высокий → низкий" },
+  { value: "title:asc", label: "Название А-Я" },
+];
 
 export default function RecommendationsPage() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [genre, setGenre] = useState("");
+  const [sortBy, setSortBy] = useState(SORT_OPTIONS[0].value);
 
   async function load() {
     const res = await fetch("/api/recommendations");
@@ -55,6 +66,17 @@ export default function RecommendationsPage() {
     });
   }
 
+  const genreOptions = useMemo(() => extractGenreOptions(recs), [recs]);
+
+  const visibleRecs = useMemo(() => {
+    const filtered = recs.filter((r) => matchesSearchAndGenre(r, search, genre));
+    return sortMovies(filtered, sortBy, {
+      created: (r) => r.created_at,
+      rating: (r) => toNumber(r.imdb_rating),
+      title: (r) => r.title,
+    });
+  }, [recs, search, genre, sortBy]);
+
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-card bg-surface p-4">
@@ -72,6 +94,20 @@ export default function RecommendationsPage() {
         {error && <p className="mt-2 text-sm text-velvet">{error}</p>}
       </div>
 
+      {recs.length > 0 && (
+        <FilterBar
+          search={search}
+          onSearchChange={setSearch}
+          genre={genre}
+          onGenreChange={setGenre}
+          genreOptions={genreOptions}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOptions={SORT_OPTIONS}
+          resultCount={visibleRecs.length}
+        />
+      )}
+
       {loading && <p className="text-sm text-muted">Загружаю…</p>}
 
       {!loading && recs.length === 0 && !generating && (
@@ -80,8 +116,12 @@ export default function RecommendationsPage() {
         </p>
       )}
 
+      {!loading && recs.length > 0 && visibleRecs.length === 0 && (
+        <p className="text-sm text-muted">Ничего не найдено по этим фильтрам.</p>
+      )}
+
       <div className="flex flex-col gap-3">
-        {recs.map((r) => (
+        {visibleRecs.map((r) => (
           <RecommendationCard key={r.id} rec={r} onAccept={handleAccept} onReject={handleReject} />
         ))}
       </div>
